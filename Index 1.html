@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Suomi Master - Full Examples</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; margin: 0; background: #f0f2f5; color: #1c1e21; }
+        header { background: #003580; color: white; text-align: center; padding: 15px; font-weight: bold; }
+        nav { display: flex; flex-wrap: wrap; justify-content: space-around; padding: 10px; background: white; border-bottom: 1px solid #ddd; position: sticky; top: 0; z-index: 100; gap: 5px; }
+        .nav-btn { padding: 8px 12px; border: none; background: #0056d2; color: white; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 0.9em; }
+        .toggle-btn { background: #28a745; }
+        
+        .category-header { 
+            background: #e4e6eb; padding: 12px 15px; margin: 10px auto; max-width: 500px; 
+            border-radius: 8px; cursor: pointer; display: flex; justify-content: space-between; align-items: center;
+            font-weight: bold; color: #003580; border: 1px solid #dcdfe3;
+        }
+        .category-content { display: none; margin-bottom: 15px; }
+        .category-content.active { display: block; }
+
+        .card { background: white; margin: 8px auto; padding: 15px; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); max-width: 480px; cursor: pointer; }
+        .row { display: flex; justify-content: space-between; align-items: center; }
+        .example-box { display: none; margin-top: 10px; padding: 10px; background: #f8f9fa; border-left: 4px solid #0056d2; border-radius: 4px; font-size: 0.9em; }
+        .example-box.active { display: block; animation: slideIn 0.2s ease-out; }
+        
+        #quiz-container { text-align: center; max-width: 450px; margin: 20px auto; padding: 10px; }
+        .option-btn { display: block; width: 100%; margin: 10px 0; padding: 15px; background: white; border: 2px solid #0056d2; color: #0056d2; font-weight: 600; border-radius: 10px; cursor: pointer; }
+        .info-text { font-size: 0.85em; color: #65676b; margin-bottom: 5px; }
+        .page { display: none; padding: 10px; }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body>
+
+<header id="app-title">🇫🇮 Suomi Learner Pro</header>
+
+<nav>
+    <button class="nav-btn" onclick="showPage('vocab')" id="nav-vocab">Từ điển</button>
+    <button class="nav-btn" onclick="showPage('review')" id="nav-review">Ôn tập (0)</button>
+    <button class="nav-btn toggle-btn" onclick="toggleLanguage()" id="lang-toggle">VN / EN</button>
+</nav>
+
+<main>
+    <section id="vocab" class="page"></section>
+    <section id="review" class="page">
+        <div id="quiz-container">
+            <div id="quiz-content">
+                <div class="info-text" id="due-count">...</div>
+                <div class="card">
+                    <h2 id="question-text" style="font-size: 2em; margin: 10px 0;">---</h2>
+                    <button onclick="speak(currentFiWord)" style="background:#e4e6eb; color:#333; padding:5px 15px; border-radius:20px; border:none; cursor:pointer;">🔊 Nghe</button>
+                </div>
+                <div id="options-box"></div>
+            </div>
+            <div id="empty-state" style="display:none;"><div class="card" id="finish-msg">🎉 Hoàn tất!</div></div>
+        </div>
+    </section>
+</main>
+
+<script>
+    let currentLang = 'vi';
+
+    const translations = {
+        vi: { title: "🇫🇮 Suomi Learner Pro", vocab: "Từ điển", review: "Ôn tập", due: "Cần ôn: ", finish: "🎉 Hoàn thành bài ôn hôm nay!", exLabel: "Ví dụ: ", groups: ["1. Chào hỏi", "2. Đại từ", "3. Động từ", "4. Danh từ", "5. Tính từ", "6. Số đếm", "7. Cụm câu"] },
+        en: { title: "🇫🇮 Suomi Master Pro", vocab: "Dictionary", review: "Practice", due: "Due: ", finish: "🎉 All caught up for today!", exLabel: "Example: ", groups: ["1. Greetings", "2. Pronouns", "3. Verbs", "4. Nouns", "5. Adjectives", "6. Numbers", "7. Phrases"] }
+    };
+
+    const vocabGroups = {
+        "g0": [
+            {fi:"hei", vi:"xin chào", en:"hello", ex:"Hei, mitä kuuluu?", exVi:"Chào, bạn khỏe không?", exEn:"Hello, how are you?"},
+            {fi:"moi", vi:"chào (thân mật)", en:"hi", ex:"Moi moi!", exVi:"Chào nhé!", exEn:"Bye bye!"},
+            {fi:"näkemiin", vi:"tạm biệt", en:"goodbye", ex:"Näkemiin!", exVi:"Tạm biệt!", exEn:"Goodbye!"},
+            {fi:"kiitos", vi:"cảm ơn", en:"thank you", ex:"Kiitos avusta.", exVi:"Cảm ơn sự giúp đỡ.", exEn:"Thanks for the help."},
+            {fi:"anteeksi", vi:"xin lỗi", en:"sorry", ex:"Anteeksi.", exVi:"Xin lỗi.", exEn:"I'm sorry."},
+            {fi:"ole hyvä", vi:"không có chi", en:"welcome", ex:"Ole hyvä!", exVi:"Không có chi!", exEn:"You're welcome!"}
+        ],
+        "g1": [
+            {fi:"minä", vi:"tôi", en:"I", ex:"Minä olen tässä.", exVi:"Tôi ở đây.", exEn:"I am here."},
+            {fi:"sinä", vi:"bạn", en:"you", ex:"Kuka sinä olet?", exVi:"Bạn là ai?", exEn:"Who are you?"},
+            {fi:"hän", vi:"anh ấy/cô ấy", en:"he/she", ex:"Hän on opettaja.", exVi:"Người ấy là giáo viên.", exEn:"S/he is a teacher."},
+            {fi:"tämä", vi:"cái này", en:"this", ex:"Mikä tämä on?", exVi:"Đây là cái gì?", exEn:"What is this?"},
+            {fi:"se", vi:"nó", en:"it", ex:"Se on koira.", exVi:"Nó là một con chó.", exEn:"It is a dog."},
+            {fi:"kyllä", vi:"có", en:"yes", ex:"Kyllä, kiitos.", exVi:"Vâng, cảm ơn.", exEn:"Yes, please."},
+            {fi:"ei", vi:"không", en:"no", ex:"Ei, se ei ole.", exVi:"Không, không phải.", exEn:"No, it isn't."}
+        ],
+        "g2": [
+            {fi:"olla", vi:"thì là", en:"to be", ex:"Haluan olla täällä.", exVi:"Tôi muốn ở đây.", exEn:"I want to be here."},
+            {fi:"mennä", vi:"đi", en:"to go", ex:"Menen nyt.", exVi:"Tôi đi bây giờ.", exEn:"I go now."},
+            {fi:"tulla", vi:"đến", en:"to come", ex:"Tule kotiin.", exVi:"Về nhà đi.", exEn:"Come home."},
+            {fi:"nähdä", vi:"thấy", en:"to see", ex:"Nään sinut.", exVi:"Tôi thấy bạn.", exEn:"I see you."},
+            {fi:"oppia", vi:"học", en:"to learn", ex:"Opin suomea.", exVi:"Tôi học tiếng Phần.", exEn:"I learn Finnish."},
+            {fi:"puhua", vi:"nói", en:"to speak", ex:"Puhun englantia.", exVi:"Tôi nói tiếng Anh.", exEn:"I speak English."},
+            {fi:"ymmärtää", vi:"hiểu", en:"to understand", ex:"Ymmärrän.", exVi:"Tôi hiểu.", exEn:"I understand."}
+        ],
+        "g3": [
+            {fi:"ihminen", vi:"người", en:"human", ex:"Olen ihminen.", exVi:"Tôi là con người.", exEn:"I am a human."},
+            {fi:"ystävä", vi:"bạn", en:"friend", ex:"Hän on ystävä.", exVi:"Đó là một người bạn.", exEn:"S/he is a friend."},
+            {fi:"perhe", vi:"gia đình", en:"family", ex:"Minulla on perhe.", exVi:"Tôi có gia đình.", exEn:"I have a family."},
+            {fi:"koti", vi:"nhà", en:"home", ex:"Menen kotiin.", exVi:"Tôi về nhà.", exEn:"I go home."},
+            {fi:"vesi", vi:"nước", en:"water", ex:"Juon vettä.", exVi:"Tôi uống nước.", exEn:"I drink water."}
+        ],
+        "g4": [
+            {fi:"hyvä", vi:"tốt", en:"good", ex:"Tämä on hyvä.", exVi:"Cái này tốt.", exEn:"This is good."},
+            {fi:"uusi", vi:"mới", en:"new", ex:"Uusi auto.", exVi:"Xe hơi mới.", exEn:"A new car."},
+            {fi:"suuri", vi:"lớn", en:"big", ex:"Suuri talo.", exVi:"Ngôi nhà lớn.", exEn:"A big house."},
+            {fi:"pieni", vi:"nhỏ", en:"small", ex:"Pieni poika.", exVi:"Cậu bé nhỏ.", exEn:"A small boy."}
+        ],
+        "g5": [
+            {fi:"yksi", vi:"1", en:"one", ex:"Yksi kahvi.", exVi:"Một cà phê.", exEn:"One coffee."},
+            {fi:"kaksi", vi:"2", en:"two", ex:"Kaksi vettä.", exVi:"Hai nước.", exEn:"Two waters."},
+            {fi:"kymmenen", vi:"10", en:"ten", ex:"Kymmenen euroa.", exVi:"Mười Euro.", exEn:"Ten Euros."}
+        ],
+        "g6": [
+            {fi:"Minä olen opiskelija", vi:"Tôi là sinh viên", en:"I am a student", ex:"Olen opiskelija täällä.", exVi:"Tôi là sinh viên ở đây.", exEn:"I'm a student here."},
+            {fi:"Puhun vähän suomea", vi:"Tôi nói chút tiếng Phần", en:"I speak a bit of Finnish", ex:"Anteeksi, puhun vähän suomea.", exVi:"Xin lỗi, tôi nói chút tiếng Phần.", exEn:"Sorry, I speak a bit of Finnish."}
+        ]
+    };
+
+    const allWords = Object.values(vocabGroups).flat();
+    let userStats = JSON.parse(localStorage.getItem('suomi_stats_final')) || {};
+    let currentFiWord = "";
+
+    function toggleLanguage() {
+        currentLang = currentLang === 'vi' ? 'en' : 'vi';
+        updateUI();
+        renderVocab();
+        if (document.getElementById('review').style.display === 'block') startQuiz();
+    }
+
+    function updateUI() {
+        const t = translations[currentLang];
+        document.getElementById('app-title').innerText = t.title;
+        document.getElementById('nav-vocab').innerText = t.vocab;
+        document.getElementById('finish-msg').innerText = t.finish;
+        updateNavCount();
+    }
+
+    function renderVocab() {
+        const box = document.getElementById("vocab"); box.innerHTML = "";
+        const groupLabels = translations[currentLang].groups;
+        
+        Object.keys(vocabGroups).forEach((key, gIdx) => {
+            let html = `<div class="category-header" onclick="toggleCategory(${gIdx})">${groupLabels[gIdx]} <span>▼</span></div><div id="cat-${gIdx}" class="category-content">`;
+            vocabGroups[key].forEach((item, i) => {
+                html += `
+                <div class="card" onclick="event.stopPropagation(); toggleEx('${gIdx}-${i}')">
+                    <div class="row"><b>${item.fi}</b> <button onclick="event.stopPropagation(); speak('${item.fi}')" style="border:none;background:none;cursor:pointer;">🔊</button></div>
+                    <div style="font-size:0.9em; color:#444;">${item[currentLang]}</div>
+                    <div id="ex-${gIdx}-${i}" class="example-box">
+                        <div class="row"><i>${item.ex}</i> <button onclick="event.stopPropagation(); speak('${item.ex}')" style="font-size:10px;border:none;background:#ddd;border-radius:50%;cursor:pointer;">🔊</button></div>
+                        <div style="color:#666; font-size:0.85em; margin-top:5px;">${currentLang === 'vi' ? (item.exVi || '') : (item.exEn || '')}</div>
+                    </div>
+                </div>`;
+            });
+            html += `</div>`;
+            box.innerHTML += html;
+        });
+    }
+
+    function toggleCategory(id) { document.getElementById(`cat-${id}`).classList.toggle('active'); }
+    function toggleEx(id) { document.getElementById(`ex-${id}`).classList.toggle('active'); }
+
+    function speak(text) {
+        window.speechSynthesis.cancel();
+        const msg = new SpeechSynthesisUtterance(text);
+        msg.lang = 'fi-FI';
+        window.speechSynthesis.speak(msg);
+    }
+
+    function updateSRM(word, isCorrect) {
+        if (!userStats[word]) userStats[word] = { interval: 0, reps: 0, next: Date.now() };
+        let s = userStats[word];
+        if (isCorrect) { s.reps++; s.interval = s.reps === 1 ? 1 : (s.reps === 2 ? 3 : Math.round(s.interval * 2.4)); }
+        else { s.reps = 0; s.interval = 0; }
+        s.next = Date.now() + (s.interval * 24 * 60 * 60 * 1000);
+        localStorage.setItem('suomi_stats_final', JSON.stringify(userStats));
+        updateNavCount();
+    }
+
+    function getDueWords() {
+        const now = Date.now();
+        return allWords.filter(i => !userStats[i.fi] || userStats[i.fi].next <= now);
+    }
+
+    function updateNavCount() {
+        document.getElementById('nav-review').innerText = `${translations[currentLang].review} (${getDueWords().length})`;
+    }
+
+    function startQuiz() {
+        const due = getDueWords();
+        if (due.length === 0) {
+            document.getElementById("quiz-content").style.display = "none";
+            document.getElementById("empty-state").style.display = "block";
+            return;
+        }
+        document.getElementById("quiz-content").style.display = "block";
+        document.getElementById("empty-state").style.display = "none";
+        document.getElementById("due-count").innerText = translations[currentLang].due + due.length;
+
+        const item = due[Math.floor(Math.random() * due.length)];
+        currentFiWord = item.fi;
+        document.getElementById("question-text").innerText = item.fi;
+        speak(item.fi);
+
+        const optionsBox = document.getElementById("options-box"); optionsBox.innerHTML = "";
+        let opts = [item[currentLang]];
+        while(opts.length < 3) {
+            let r = allWords[Math.floor(Math.random() * allWords.length)][currentLang];
+            if(!opts.includes(r)) opts.push(r);
+        }
+        opts.sort(() => Math.random() - 0.5);
+
+        opts.forEach(o => {
+            const b = document.createElement("button"); b.className = "option-btn"; b.innerText = o;
+            b.onclick = () => { updateSRM(item.fi, (o === item[currentLang])); setTimeout(startQuiz, 500); };
+            optionsBox.appendChild(b);
+        });
+    }
+
+    function showPage(id) {
+        document.querySelectorAll(".page").forEach(p => p.style.display = "none");
+        document.getElementById(id).style.display = "block";
+        if(id === 'review') startQuiz();
+        if(id === 'vocab') renderVocab();
+        updateNavCount();
+    }
+
+    window.onload = () => { updateUI(); showPage('vocab'); };
+</script>
+</body>
+</html>
